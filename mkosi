@@ -2867,7 +2867,7 @@ def install_unified_kernel(args: CommandLineArguments,
     if args.distribution not in (Distribution.fedora, Distribution.mageia, Distribution.ubuntu, Distribution.debian):
         return
     
-    lib_path = 'lib'  args.distribution in (Distribution.ubuntu, Distribution.debian) else 'usr/lib'
+    lib_path = 'lib' if args.distribution in (Distribution.ubuntu, Distribution.debian) else 'usr/lib'
 
     with complete_step("Generating combined kernel + initrd boot file"):
 
