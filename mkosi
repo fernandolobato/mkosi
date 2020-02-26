@@ -1865,7 +1865,7 @@ def install_debian_or_ubuntu(args: CommandLineArguments,
         with open(dpkg_conf, "w") as f:
             f.writelines(f'path-exclude {d}/*\n' for d in doc_paths)
 
-    cmdline = ["/usr/bin/apt-get", "--assume-yes", "--no-install-recommends", "install"] + extra_packages
+    cmdline = ["/usr/bin/apt-get", "--assume-yes", "install"] + extra_packages
     env = {
         'DEBIAN_FRONTEND': 'noninteractive',
         'DEBCONF_NONINTERACTIVE_SEEN': 'true',
@@ -2875,6 +2875,9 @@ def install_unified_kernel(args: CommandLineArguments,
         if root_hash is not None:
             cmdline += " roothash=" + root_hash
 
+        cmdline += " root=live:http://192.168.6.1/zimbruntu/squashfs.img"
+        cmdline += " rd.shell rd.live.ram=1 "
+
         for kver in os.scandir(os.path.join(workspace, "root", lib_path, "modules")):
             if not kver.is_dir():
                 continue
@@ -2899,12 +2902,14 @@ def install_unified_kernel(args: CommandLineArguments,
             dracut += ("-i",) + (os.path.join("/", lib_path, "systemd/system/systemd-volatile-root.service"),)*2 + \
                       ("-i",) + (os.path.join("/", lib_path, "systemd/systemd-volatile-root"),)*2 + \
                       ("-i",) + (os.path.join("/", lib_path, "systemd/systemd-veritysetup"),)*2 + \
-                      ("-i",) + (os.path.join("/", lib_path, "systemd/system-generators/systemd-veritysetup-generator"),)*2
+                      ("-i",) + (os.path.join("/", lib_path, "systemd/system-generators/systemd-veritysetup-generator"),)*2 
 
             if args.output_format.is_squashfs:
                 dracut += ['--add-drivers', 'squashfs']
 
             dracut += ['--add', 'qemu']
+            dracut += ['--add', 'dmsquash-live']
+            dracut += ['--add', 'livenet']
 
             dracut += [boot_binary]
 
