@@ -2835,6 +2835,37 @@ def patch_root_uuid(args: CommandLineArguments,
             check=True)
 
 
+def unified_netboot_kernel(args: CommandLineArguments,
+                           workspace: str,
+                           kernel_version_name: str,
+                           prefix: str) -> None:
+    
+    net_boot_server_ip = "192.168.6.1"
+    net_boot_image_location = "zimbruntu/squashfs.img"
+
+    cmdline = ' '.join(args.kernel_command_line)
+    cmdline += " root=live:http://{}/{}".format(net_boot_server_ip, net_boot_image_location)
+    cmdline += " rd.live.ram=1"
+
+    dracut = ["/usr/bin/dracut",
+                "-v",
+                "--no-hostonly",
+                "--uefi",
+                "--uefi-stub", "/usr/lib/systemd/boot/efi/linuxx64.efi.stub",
+                "--kver", kernel_version_name,
+                "--kernel-cmdline", cmdline]
+
+    add_modules = '{} {} {}'.format('qemu', 'dmsquash-live', 'livenet')
+    dracut += ['--add', add_modules]
+    dracut += ['--add-drivers', 'squashfs']
+    
+    boot_binary = prefix + "/EFI/linux-" + kernel_version_name + '-netboot.efi'
+
+    dracut += [boot_binary]
+
+    run_workspace_command(args, workspace, *dracut)
+
+    
 def install_unified_kernel(args: CommandLineArguments,
                            workspace: str,
                            do_run_build_script: bool,
@@ -2866,7 +2897,7 @@ def install_unified_kernel(args: CommandLineArguments,
 
     if args.distribution not in (Distribution.fedora, Distribution.mageia, Distribution.ubuntu, Distribution.debian):
         return
-    
+
     lib_path = 'lib' if args.distribution in (Distribution.ubuntu, Distribution.debian) else 'usr/lib'
 
     with complete_step("Generating combined kernel + initrd boot file"):
@@ -2875,15 +2906,15 @@ def install_unified_kernel(args: CommandLineArguments,
         if root_hash is not None:
             cmdline += " roothash=" + root_hash
 
-        cmdline += " root=live:http://192.168.6.1/zimbruntu/squashfs.img"
-        cmdline += " rd.shell rd.live.ram=1 "
-
         for kver in os.scandir(os.path.join(workspace, "root", lib_path, "modules")):
             if not kver.is_dir():
                 continue
-
+            
             # Place kernel in XBOOTLDR partition if it is turned on, otherwise in the ESP
             prefix = "/efi" if args.xbootldr_size is None else "/boot"
+
+            if True: # Net boot efi should be a cmdline argument.
+                unified_netboot_kernel(args, workspace, kver.name, prefix)
 
             boot_binary = prefix + "/EFI/Linux/linux-" + kver.name
             if root_hash is not None:
@@ -2908,8 +2939,6 @@ def install_unified_kernel(args: CommandLineArguments,
                 dracut += ['--add-drivers', 'squashfs']
 
             dracut += ['--add', 'qemu']
-            dracut += ['--add', 'dmsquash-live']
-            dracut += ['--add', 'livenet']
 
             dracut += [boot_binary]
 
